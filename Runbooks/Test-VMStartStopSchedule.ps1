@@ -44,9 +44,9 @@ workflow Test-VMStartStopSchedule
 		[Parameter(Mandatory=$true)]
 		[string]$SubscriptionName,
 		[Parameter(Mandatory=$false)]
-		$TagName='Schedule',
+		$TagName='StartStopSchedule',
 		[Parameter(Mandatory=$false)]
-		$EnableTagName='EnableSchedule',
+		$EnableTagName='EnableStartStopSchedule',
 		[Parameter(Mandatory=$false)]
 		$ConnectionName='AzureRunAsConnection'
 		
@@ -172,6 +172,7 @@ workflow Test-VMStartStopSchedule
 
 			if (ContainsSchedule -tags $vm.Tags)
 			{
+				write-verbose 'Schedule present on VM'
 				$scheduleInfo = GetSchedule -tags $vm.Tags
 				if ($scheduleInfo) {
 					Write-Output "   Resource Schedule for vm $($vm.name) is $scheduleInfo"
@@ -181,8 +182,9 @@ workflow Test-VMStartStopSchedule
 			}
 			else
 			{
-				if (ContainsSchedule $rg.tags)
+				if (ContainsSchedule -tags $rg.tags)
 				{
+					write-verbose 'Schedule present on RG'
 					$scheduleInfo = GetSchedule -tags $rg.Tags
 					if($scheduleInfo) {
 						Write-Output "   Resource Group Schedule for vm $($vm.name) is $scheduleInfo"

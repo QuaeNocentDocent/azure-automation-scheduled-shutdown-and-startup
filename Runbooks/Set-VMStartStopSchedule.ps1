@@ -98,9 +98,9 @@ workflow Set-VMStartStopSchedule
 		[Parameter(Mandatory=$false)]
 		$Schedule,
 		[Parameter(Mandatory=$false)]
-		$TagName='Schedule',
+		$TagName='StartStopSchedule',
 		[Parameter(Mandatory=$false)]
-		$EnableTagName='EnableSchedule',
+		$EnableTagName='EnableStartStopSchedule',
 		#switch not supported in powershell workflow
 		[Parameter(Mandatory=$false)]
 		[bool] $enabled=$true,		
@@ -172,8 +172,10 @@ workflow Set-VMStartStopSchedule
 #region parameters validation
 	$subscription = Select-AzureRmSubscription -SubscriptionName $subscriptionName -ErrorAction SilentlyContinue -ErrorVariable subErr
 
-	if($subErr) {
-		throw $subErr.tostring()
+
+	if($subErr -or !$subscription) {
+        if ($subErr) {throw $subErr.tostring()}
+        else {throw 'Error getting subscription'}
 	}
 	
 	$resGroup = Get-AzureRmResourceGroup -Name $ResourceGroupName
