@@ -4,9 +4,6 @@
   "parameters": {
     "omsAutomationAccountName": {
       "value": "prelabtest1"
-    },
-    "omsAutomationRegion": {
-      "value": "westeurope"
     }
   }
 }

@@ -1,4 +1,4 @@
-workflow Remove-ResourceSchedule
+workflow Remove-VMStartStopSchedule
 {
     <#
 	.SYNOPSIS

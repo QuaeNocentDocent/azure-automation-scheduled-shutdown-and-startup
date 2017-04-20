@@ -1,4 +1,4 @@
-workflow Add-ResourceSchedule
+workflow Set-StartStopSchedule
 {
     <#
 	.SYNOPSIS
