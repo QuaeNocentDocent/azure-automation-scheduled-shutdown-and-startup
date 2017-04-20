@@ -254,7 +254,12 @@ workflow Test-VMStartStopSchedule
 
 					Write-Output "Identified Start Time $startTime and End Time $endTime"
 
-					if (($startTime -ne 0) -and ($endTime -ne 0))
+					#here we need to manage some special cases
+					# StartTime -eq EndTime -> Skip
+					# StartTime -eq 0 -> is 12AM
+					# EndTime  -gt 23 -> don't turn it off
+
+					if ($startTime -eq $endTime)
 					{
 						if ($startTime -lt $endTime)
 						{
@@ -307,7 +312,7 @@ workflow Test-VMStartStopSchedule
 					}
 					else
 					{
-						Write-Output "VM $($vm.Name) contains schedule with start and end time equal to 0, this prevents any action on this VM by the runbook."
+						Write-Output "VM $($vm.Name) contains schedule with equal start and end time, this prevents any action on this VM by the runbook."
 					}
 				}
 				else
