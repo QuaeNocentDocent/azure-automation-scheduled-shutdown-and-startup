@@ -24,7 +24,7 @@
     },
     "_artifactsLocation": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/QuaeNocentDocent/azure-automation-scheduled-shutdown-and-startup/master",
+      "defaultValue": "https://raw.githubusercontent.com/QuaeNocentDocent/azure-automation-scheduled-shutdown-and-startup/30andswitch",
       "metadata": {
         "description": "The base URI where artifacts required by this template are located"
       }
@@ -35,7 +35,7 @@
           {
             "name": "Test-VMStartStopSchedule",
             "description": "Lists every VM on every resource group of a subscription and test for a Schedule tag existance and takes an action to start or shutdown the VM depending on scheduled hours.",
-            "type": "script",
+            "type": "Script",
             "logProgress": "false",
             "logVerbose": "false",
             "Id":"",
@@ -64,9 +64,10 @@
         }
       },
       {
-        "name": "[variables('runbooks')[copyIndex()].name]",
+        "name": "[concat(parameters('omsAutomationAccountName'),'/',variables('runbooks')[copyIndex()].name)]",
         "type": "Microsoft.Automation/automationAccounts/runbooks",
         "apiVersion": "2015-10-31",
+        "location": "[parameters('omsAutomationRegion')]",        
         "copy": {
             "name": "runbooksCopy",
             "count": "[length(variables('runbooks'))]"
@@ -83,25 +84,27 @@
         }
       },
       {
-          "name": "[variables('scheduleName')]",
-          "type": "Microsoft.Automation/automationAccounts/schedules",
-          "apiVersion": "2015-10-31",
-          "properties": {
-              "description": "",
-              "startTime": "2017-04-20T11:02:00+02:00",
-              "expiryTime": "9999-12-31T23:59:59.9999999+00:00",
-              "isEnabled": true,
-              "interval": 1,
-              "frequency": "Hour"
-          },
-          "dependsOn": [
-              "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
-          ]
+        "name": "[concat(parameters('omsAutomationAccountName'),'/',variables('scheduleName'))]",
+        "type": "Microsoft.Automation/automationAccounts/schedules",
+        "apiVersion": "2015-10-31",
+        "location": "[parameters('omsAutomationRegion')]",          
+        "properties": {
+            "description": "",
+            "startTime": "",
+            "expiryTime": "9999-12-31T23:59:59.9999999+00:00",
+            "isEnabled": true,
+            "interval": 1,
+            "frequency": "Hour"
+        },
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+        ]
       },
       {
         "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-        "name": "[parameters('jobScheduleName')]",
+        "name": "[concat(parameters('omsAutomationAccountName'),'/',variables('jobScheduleName'))]",
         "apiVersion": "2015-10-31",
+        "location": "[parameters('omsAutomationRegion')]",        
         "properties": {
             "runbook": {
                 "name": "Test-VMStartStopSchedule"
@@ -113,7 +116,7 @@
         },
         "dependsOn": [
               "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]",
-              "[resourceId('Microsoft.Automation/automationAccounts/schedules', parameters('omsAutomationAccountName'), variables('scheduleName')]",
+              "[resourceId('Microsoft.Automation/automationAccounts/schedules', parameters('omsAutomationAccountName'), variables('scheduleName'))]",
               "runbooksCopy"              
         ]
       }      

@@ -1,4 +1,4 @@
-workflow Test-ResourceSchedule
+workflow Test-VMStartStopSchedule
 {
     <#
 	.SYNOPSIS
