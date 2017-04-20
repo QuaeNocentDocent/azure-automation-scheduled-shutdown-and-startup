@@ -1,0 +1,7 @@
+{
+  "itemDisplayName": "Create Azure Automation Runbook to start and stop VMS on a given schedule",
+  "description": "This template creates a set of Azure Automation runbooks thata srat and stop VMs based on schedule defined in a tag.",
+  "summary": "This template creates an Azure Automation runbook and credential.  It then starts the runbook job.",
+  "githubUsername": "brandubh",
+  "dateUpdated": "2017-04-20"
+}
