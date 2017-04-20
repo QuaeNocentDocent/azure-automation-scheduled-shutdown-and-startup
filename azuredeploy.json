@@ -38,11 +38,11 @@
             "logVerbose": "false",
             "Id":"",
             "publishContentLink": {
-              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Add-VMStartStopSchedule.ps1')]",
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Set-VMStartStopSchedule.ps1')]",
               "version": "1.0.0.0"
             }
           },
-                    {
+          {
             "name": "Remove-VMStartStopSchedule",
             "description": "Removes  Schedule tag from a VM or Resource Group. VMs without this tag are not evaluated",
             "type": "PowerShellWorkflow",

@@ -1,4 +1,4 @@
-workflow Set-StartStopSchedule
+workflow Set-VMStartStopSchedule
 {
     <#
 	.SYNOPSIS
