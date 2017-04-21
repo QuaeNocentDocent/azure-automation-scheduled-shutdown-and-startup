@@ -1,5 +1,5 @@
-workflow Test-VMStartStopSchedule
-{
+#workflow Test-VMStartStopSchedule
+#{
     <#
 	.SYNOPSIS
 		Lists every VM on every resource group of a subscription and test for a Schedule tag existance and takes an action to start or shutdown the VM depending on scheduled hours.
@@ -52,38 +52,14 @@ workflow Test-VMStartStopSchedule
 		
 	)
     
-	function ContainsSchedule
-	{
-		param
-		(
-			[Parameter(Mandatory=$false)]
-			[System.Collections.Hashtable[]]$tags
-		)
-
-		if ($tags -eq $null)
-		{
-			return $false
-		}
-
-		$tagList = $tags | ConvertTo-Json | ConvertFrom-Json
-
-		foreach ($tag in $tagList)
-		{
-			if ($tag.Name -eq $TagName)
-			{
-				return $true
-			}
-		}
-
-		return $false
-	}
-
 	function GetSchedule
 	{
 		param
 		(
 			[Parameter(Mandatory=$false)]
-			[System.Collections.Hashtable[]]$tags
+			[System.Collections.Hashtable]$tags,
+            [string] $TagName,
+            [string] $EnableTagName
 		)
 		
 		if ($tags -eq $null)
@@ -91,18 +67,9 @@ workflow Test-VMStartStopSchedule
 			return $null
 		}
 
-		$tagList = $tags | ConvertTo-Json | ConvertFrom-Json
-		$schedule=$null
-		$enabled=$true
-		foreach ($tag in $tagList)
-		{
-			switch ($tag.name)
-			{
-				$TagName {$schedule=$tag.Value}
-				$EnableTagName {if($Tag.Value -eq 0) {$enabled=$false}}
-			}
-		}
-		if ($enabled) {return $schedule}
+		$schedule=$tags[$TagName]        
+		$enabled=[bool] $tags[$EnableTagName]
+		if ($enabled) {return [string]$schedule}
 		else {
 			write-output 'Schedule is disabled, skipping'
 			return $null
@@ -170,10 +137,10 @@ workflow Test-VMStartStopSchedule
 		{
 			Write-Output "VM to be evaluated: $($vm.name)"
 
-			if (ContainsSchedule -tags $vm.Tags)
+			if ($vm.Tags.Keys -icontains $TagName)
 			{
 				write-verbose 'Schedule present on VM'
-				$scheduleInfo = GetSchedule -tags $vm.Tags
+				$scheduleInfo = GetSchedule -tags $vm.Tags -TagName $tagName -EnableTagName $EnableTagName
 				if ($scheduleInfo) {
 					Write-Output "   Resource Schedule for vm $($vm.name) is $scheduleInfo"
 					$vmObj = New-Object -TypeName PSObject -Property @{"Name"=$vm.Name;"ResourceGroupName"=$vm.ResourceGroupName;"Schedule"=$scheduleInfo}
@@ -182,12 +149,12 @@ workflow Test-VMStartStopSchedule
 			}
 			else
 			{
-				if (ContainsSchedule -tags $rg.tags)
+				if ($rg.tags.Keys -icontains $TagName)
 				{
 					write-verbose 'Schedule present on RG'
-					$scheduleInfo = GetSchedule -tags $rg.Tags
+					$scheduleInfo = GetSchedule -tags $rg.Tags -TagName $tagName -EnableTagName $EnableTagName
 					if($scheduleInfo) {
-						Write-Output "   Resource Group Schedule for vm $($vm.name) is $scheduleInfo"
+						Write-Output ('   Resource Group Schedule for vm {0} is {1}' -f $vm.name, ($scheduleInfo))
 						$vmObj = New-Object -TypeName PSObject -Property @{"Name"=$vm.Name;"ResourceGroupName"=$vm.ResourceGroupName;"Schedule"=$scheduleInfo}
 						$vmList += $vmObj
 					}
@@ -259,7 +226,7 @@ workflow Test-VMStartStopSchedule
 					# StartTime -eq 0 -> is 12AM
 					# EndTime  -gt 23 -> don't turn it off
 
-					if ($startTime -eq $endTime)
+					if ($startTime -ne $endTime)
 					{
 						if ($startTime -lt $endTime)
 						{
@@ -269,20 +236,9 @@ workflow Test-VMStartStopSchedule
 							Write-Output "     Current Time: $($resourceTzCurrentTime.Hour)"
 							
 							# Performing some conversions in order to obtain the VM status
-							$vmFullStatus = Get-AzureRmVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Status
-							$vmStatusJson = $vmFullStatus | ConvertTo-Json -depth 999
+							$vmStatus = Get-AzureRmVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Status
 
-							$vmStatus = $vmStatusJson | ConvertFrom-Json
-
-							if ($azRmPsVer.Version -ge [Version]"1.3")
-							{
-								$vmStatusCode = $vmStatus.Statuses[1].code
-							}
-							else
-							{
-								$vmStatuses = $vmStatus.StatusesText | ConvertFrom-Json
-								$vmStatusCode = $vmStatuses[1].code
-							}
+                            $vmStatusCode = $vmStatus.Statuses[1].Code
 					
 							Write-Output "     VM Status Code: $vmStatusCode"
 
@@ -326,10 +282,68 @@ workflow Test-VMStartStopSchedule
 			}
 		}
 		catch {
-			Write-Error ('Issues processing VM {0} - {1} - continuing with next VM' -f $vm.Name, $_.Exception)
+			Write-Error ('Issues processing VM {0} - {1} {2} - continuing with next VM' -f $vm.Name, $_.Exception, $error[0].ErrorDetails)
+            $reportFailure=$true
 		}
 	}
 
+$startVM={
+    param($vmName, $resourceGroupName, $servicePrincipalConnection)
+		Add-AzureRmAccount `
+			-ServicePrincipal `
+			-TenantId $servicePrincipalConnection.TenantId `
+			-ApplicationId $servicePrincipalConnection.ApplicationId `
+			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+    Start-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
+}
+
+$stopVM={
+    param($vmName, $resourceGroupName, $servicePrincipalConnection)
+		Add-AzureRmAccount `
+			-ServicePrincipal `
+			-TenantId $servicePrincipalConnection.TenantId `
+			-ApplicationId $servicePrincipalConnection.ApplicationId `
+			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+    Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
+}
+
+$maxConcurrency=1
+$jobTimeout=300
+$jobs=@()
+
+    foreach($vm in $vmsToStart) {
+        write-output ('Starting {0}' -f $vm.Name)
+        $jobs+=start-job -ScriptBlock $startVM -ArgumentList @($vm.Name, $vm.ResourceGroupName, $servicePrincipalConnection) -Name ('Start-{0}' -f $vm.Name)
+        $timer=get-date
+        do {
+            $runningCount = (get-job -State Running).Count
+            write-verbose ('Waiting for job to deque, current running count {0}' -f $runningCount)
+            Start-Sleep -Seconds 30
+            $timedout = ((get-date)-$timer).TotalSeconds -gt $jobTimeout
+        } while ($runningCount -ge $maxConcurrency -and !$timedOut)
+    }
+
+    foreach($vm in $vmsToStop) {
+        write-output ('Stopping {0}' -f $vm.Name)
+        $jobs+=start-job -ScriptBlock $stopVM -ArgumentList @($vm.Name, $vm.ResourceGroupName, $servicePrincipalConnection) -Name ('Stop-{0}' -f $vm.Name)
+        do {
+            $runningCount = (get-job -State Running).Count
+            write-verbose ('Waiting for job to deque, current running count {0}' -f $runningCount)
+            Start-Sleep -Seconds 30
+            $timedout = ((get-date)-$timer).TotalSeconds -gt $jobTimeout
+        } while ($runningCount -ge $maxConcurrency -and !$timedOut)
+    }
+
+    wait-job -Job $jobs -Timeout $jobTimeout
+    foreach($j in $jobs) {
+        $job = get-job -job $j
+        if ($job.State -ine 'Completed') {
+            write-error ('Error in job {0}' -f $job.Name)
+            $job
+            $reportFailure=$true
+        }
+    }
+<#
 	# Starting VMs
 	foreach -parallel -ThrottleLimit $vmsToStart.Count  ($vm in $vmsToStart)
 	{
@@ -343,6 +357,9 @@ workflow Test-VMStartStopSchedule
 		Write-Output "Stopping VM $($vm.name)"
 		Stop-AzureRmVM -Name $vm.name -ResourceGroupName $vm.ResourceGroupName -Force
 	}
-
+#>
 	Write-Output "End of runbook execution"
-}
+    if($reportFailure) {
+        throw ('Generic non critical failure see error stream for details')
+    }
+#}

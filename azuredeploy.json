@@ -21,7 +21,7 @@
           {
             "name": "Test-VMStartStopSchedule",
             "description": "Lists every VM on every resource group of a subscription and test for a Schedule tag existance and takes an action to start or shutdown the VM depending on scheduled hours.",
-            "type": "PowerShellWorkflow",
+            "type": "PowerShell",
             "logProgress": "false",
             "logVerbose": "false",
             "Id":"",
@@ -33,7 +33,7 @@
           {
             "name": "Set-VMStartStopSchedule",
             "description": "Adds Schedule tag to a VM or Resource Group that is later evaluated.",
-            "type": "PowerShellWorkflow",
+            "type": "PowerShell",
             "logProgress": "false",
             "logVerbose": "false",
             "Id":"",
@@ -45,7 +45,7 @@
           {
             "name": "Remove-VMStartStopSchedule",
             "description": "Removes  Schedule tag from a VM or Resource Group. VMs without this tag are not evaluated",
-            "type": "PowerShellWorkflow",
+            "type": "PowerShell",
             "logProgress": "false",
             "logVerbose": "false",
             "Id":"",

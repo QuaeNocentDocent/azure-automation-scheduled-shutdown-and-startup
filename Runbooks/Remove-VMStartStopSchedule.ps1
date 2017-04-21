@@ -1,5 +1,5 @@
-workflow Remove-VMStartStopSchedule
-{
+#workflow Remove-VMStartStopSchedule
+#{
     <#
 	.SYNOPSIS
 		Removes  Schedule tag from a VM or Resource Group. VMs without this tag are not evaluated by Test-ResourceSchedule to decide if VM will shutdown or not.
@@ -146,4 +146,4 @@ workflow Remove-VMStartStopSchedule
 	{
 		Set-AzureRmResourceGroup -ResourceGroupName $resourceGroupName -Tag $tags
 	}
-}
+#}

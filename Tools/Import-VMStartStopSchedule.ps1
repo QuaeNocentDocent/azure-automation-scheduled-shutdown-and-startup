@@ -1,10 +1,14 @@
 [CmdletBinding()]
 param(
   [string] $webHook,
-  [string] $csvFile
+  [string] $csvFile,
+  [String] $delimiter=';'
 )
 
-$schedules=import-csv -Path $csvFile -Delimiter ','
+$schedules=import-csv -Path $csvFile -Delimiter $delimiter
 
+foreach($schedule in $schedules) {
+    
+}
 
 

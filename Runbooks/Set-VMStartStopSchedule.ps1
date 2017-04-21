@@ -1,5 +1,5 @@
-workflow Set-VMStartStopSchedule
-{
+#workflow Set-VMStartStopSchedule
+#{
     <#
 	.SYNOPSIS
 		Adds Schedule tag to a VM or Resource Group that is later evaluated by Test-ResourceSchedule to decide if VM(s) will shutdown or not.
@@ -231,4 +231,4 @@ workflow Set-VMStartStopSchedule
 	{
 		Set-AzureRmResourceGroup -ResourceGroupName $resourceGroupName -Tag $tags
 	}
-}
+#}
