@@ -53,6 +53,18 @@
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Remove-VMStartStopSchedule.ps1')]",
               "version": "1.0.0.0"
             }
+          },
+          {
+            "name": "wh-StartStopSchedule",
+            "description": "Gives a webhhok interface for setting or removing the start7stop schedules",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/wh-StartStopSchedule.ps1')]",
+              "version": "1.0.0.0"
+            }
           }          
         ],
         // to be converted in array
