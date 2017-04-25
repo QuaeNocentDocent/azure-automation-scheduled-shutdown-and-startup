@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [string] $webHook='https://s2events.azure-automation.net/webhooks?token=lkqqZKvi7X91wPCZbgxWlnJ9888YqksqeuAXUxt%2bqZI%3d',
+  [string] $webHook='https://s2events.azure-automation.net/webhooks?token=xrYilbQ8MrWIFvkD9jbwSKY31uvKIhrPqyQIW4w%2fA7E%3d',
   [string] $csvFile="C:\Users\grandinid\Desktop\Furla-StartStop\FurlaSchedule.csv",
   [String] $delimiter=';',
   [Parameter(Mandatory=$true)]
@@ -36,10 +36,10 @@ $dayMap=@{
 
 $schedules=import-csv -Path $csvFile -Delimiter $delimiter
 
-$headers = @{"Date"=(get-date).ToUniversaltime().GetDateTimeFormats('s')}
+$headers = @{"Date"=(get-date).ToUniversaltime().GetDateTimeFormats('u')}
 
 foreach($schedule in $schedules) {
-    write-output ('Processing {0} in resource grpup {1}' -f $schedule.VM, $schedule.ResourceGroup)
+    write-output ('Processing {0} in resource group {1}' -f $schedule.VM, $schedule.ResourceGroup)
     ##create a schedule
     if($schedule.enabled -eq 0) {$enabled=$false} else {$enabled=$true}
 
@@ -57,7 +57,7 @@ foreach($schedule in $schedules) {
   $payload =@{
     'action'='set'
     'parameters'=@{
-        "subscriptioName"=$subscriptionName
+        "subscriptionName"=$subscriptionName
         "resourceGroupName"=$schedule.ResourceGroup
         "vmName"=$schedule.VM
         "schedule"=$scheduleHash
@@ -70,7 +70,7 @@ foreach($schedule in $schedules) {
 
   $body = ConvertTo-Json -InputObject $payload -Depth 4 -Compress
 
-  $response = Invoke-RestMethod -Method Post -Uri $webHook -Headers $headers -Body $body
+  $response = Invoke-RestMethod -Method Post -Uri $webHook -Headers $headers -Body $body -UseBasicParsing
   $jobid = ConvertFrom-Json $response
   write-output "AUtomation job submitted with id $jobId"
 }
