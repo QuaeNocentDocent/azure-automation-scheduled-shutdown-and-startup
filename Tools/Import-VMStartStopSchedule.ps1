@@ -36,7 +36,7 @@ $dayMap=@{
 
 $schedules=import-csv -Path $csvFile -Delimiter $delimiter
 
-$headers = @{"Date"=(get-date).ToUniversaltime().GetDateTimeFormats('u')}
+#$headers = @{"Date"=(get-date).ToUniversaltime().GetDateTimeFormats('u')}
 
 foreach($schedule in $schedules) {
     write-output ('Processing {0} in resource group {1}' -f $schedule.VM, $schedule.ResourceGroup)
@@ -71,7 +71,7 @@ foreach($schedule in $schedules) {
   $body = ConvertTo-Json -InputObject $payload -Depth 4 -Compress
 
   $response = Invoke-RestMethod -Method Post -Uri $webHook -Headers $headers -Body $body -UseBasicParsing
-  $jobid = ConvertFrom-Json $response
-  write-output "AUtomation job submitted with id $jobId"
+  #$jobid = ConvertFrom-Json $response
+  write-output "AUtomation job submitted with id $($response.JobIds)"
 }
 
