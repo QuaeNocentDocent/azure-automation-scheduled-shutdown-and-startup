@@ -29,7 +29,7 @@ if(! $WebhookData) {
 
   }
 #>
-
+write-verbose $WebhookData.RequestBody
 $context= convertfrom-json $WebhookData.RequestBody
 
 #check for mandatory params
@@ -47,13 +47,13 @@ switch ($context.action) {
     if(![String]::IsNullOrEmpty($context.parameters.enableTagName)) {$OptionalParameters.Add('enableTagName', $context.parameters.enableTagName)}
     if(![String]::IsNullOrEmpty($context.parameters.enabled)) {$OptionalParameters.Add('enabled', $context.parameters.enabled)}    
     if(![String]::IsNullOrEmpty($context.parameters.connectionName)) {$OptionalParameters.Add('connectionName', $context.parameters.connectionName)}      
-    .\Set-VMStartStopSchedule.ps1 -subscriptionName $context.parameters.subscriptioName -resourceGroupName -$context.parameters.resourceGroupName `
+    .\Set-VMStartStopSchedule.ps1 -subscriptionName $context.parameters.subscriptionName -resourceGroupName $context.parameters.resourceGroupName `
       -vmName $context.parameters.vmName -schedule $context.parameters.schedule @OptionalParameters
   }
   'remove' {
     if(![String]::IsNullOrEmpty($context.parameters.tagName)) {$OptionalParameters.Add('tagName', $context.parameters.tagName)}
     if(![String]::IsNullOrEmpty($context.parameters.connectionName)) {$OptionalParameters.Add('connectionName', $context.parameters.connectionName)}          
-    .\Remove-VMStartStopSchedule.ps1 -subscriptionName $context.parameters.subscriptioName -resourceGroupName -$context.parameters.resourceGroupName `
+    .\Remove-VMStartStopSchedule.ps1 -subscriptionName $context.parameters.subscriptionName -resourceGroupName $context.parameters.resourceGroupName `
       -vmName $context.parameters.vmName -schedule $context.parameters.schedule @OptionalParameters
   }
 }

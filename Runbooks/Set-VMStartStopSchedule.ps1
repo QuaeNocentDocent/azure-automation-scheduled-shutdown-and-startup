@@ -183,7 +183,7 @@
 		throw ('{0} not found' -f $ResourceGroupName)
 	}
 
-	if($VMName) {
+	if(![String]::IsNullOrEmpty($VMName)) {
 		$vm = get-azurermvm -ResourceGroupName $ResourceGroupName -Name $VMName
 		if (! $vm) {
 			throw ('VM {0} not found in resource group {1}' -f $VMName, $ResourceGroupName)
@@ -192,43 +192,38 @@
 #endregion 
 
 	# Getting tags
-	$tags=@()
-
-	if ($VMName -ne $null)
+if(![String]::IsNullOrEmpty($VMName))
 	{
-		foreach ($tag in (Get-AzureRmResource -Name $vmName -resourceGroupName $resourceGroupName -ResourceType "Microsoft.Compute/virtualmachines").Tags)
-		{
-			if ($tag.Name -ne $TagName -and $tag.name -ne $EnableTagName)
-			{
-				$tags+=$tag
-			}
-		}
+		$tags = (Get-AzureRmVM -ResourceGroupName $ResourceGroupName -Name $vmName).Tags
 	}
 	else
 	{
-		foreach ($tag in (Get-AzureRmResourceGroup -Name $resourceGroupName).Tags)
-		{
-			if ($tag.Name -ne $TagName -and $tag.name -ne $EnableTagName)
-			{
-				$tags+=$tag
-			}
-		}		
+		$tags = (Get-AzureRmResourceGroup -ResourceGroupName $resourceGroupName).Tags
 	}
-	
-	# Adding a tag
-	$scheduleJson = ConvertTo-Json $schedule -Compress
-	
-	$tags +=@{Name=$TagName;Value=$scheduleJson}
-	if($enabled) {$localeIndipendentEnableValue=1} else {$localeIndipendentEnableValue=0}
-	$tags += @{Name=$EnableTagName;Value=$localeIndipendentEnableValue}
-	
+
 	# Setting tag
-	if ($VMName -ne $null)
+	$scheduleJson = ConvertTo-Json $schedule -Compress
+	if($enabled) {$localeIndipendentEnableValue=1} else {$localeIndipendentEnableValue=0}
+
+		if($tags.ContainsKey($tagName)) {
+			$tags[$tagName] = $scheduleJson
+		}
+		else {$tags.Add($tagName,$scheduleJson)}
+		if($tags.ContainsKey($EnableTagName)) {
+			$tags[$EnableTagName] = $localeIndipendentEnableValue
+		}
+		else {$tags.Add($EnableTagName,$localeIndipendentEnableValue)}	
+
+if(![String]::IsNullOrEmpty($VMName))
 	{
 		Set-AzureRmResource -Name $vmName -resourceGroupName $resourceGroupName -ResourceType "Microsoft.Compute/VirtualMachines" -Tag $tags -Confirm:$false -force
 	}
 	else
 	{
 		Set-AzureRmResourceGroup -ResourceGroupName $resourceGroupName -Tag $tags
+	}
+
+	if($error) {
+		throw $error[0]
 	}
 #}
