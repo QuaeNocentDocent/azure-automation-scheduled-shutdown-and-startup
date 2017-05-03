@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "omsAutomationAccountName": {
-      "value": "prelabtest1"
+      "value": "automation1-weu"
     }
   }
 }

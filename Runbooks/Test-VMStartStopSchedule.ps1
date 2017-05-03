@@ -48,6 +48,8 @@
 		[Parameter(Mandatory=$false)]
 		$EnableTagName='EnableStartStopSchedule',
 		[Parameter(Mandatory=$false)]
+		$ScriptTagName='ScriptStartStopSchedule',		
+		[Parameter(Mandatory=$false)]
 		$ConnectionName='AzureRunAsConnection',
         [int] $maxConcurrency=50,
         [int] $jobTimeout=300,
@@ -103,6 +105,7 @@ Function RunInHybrid
 			    -TenantId $servicePrincipalConnection.TenantId `
 			    -ApplicationId $servicePrincipalConnection.ApplicationId `
 			    -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+		## MIssing shutdown script management  scriptTimeout=$vm.script.TimeoutSeconds; scriptUri=$vm.script.ScriptUri
         Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
     }
 
@@ -168,7 +171,7 @@ Function RunOnAzure
         }
     }
 
-$jobs=@()
+	$jobs=@()
 
     foreach($vm in $vmsToStart) {
         write-output ('Starting {0}' -f $vm.Name)
@@ -180,27 +183,27 @@ $jobs=@()
     foreach($vm in $vmsToStop) {
         write-output ('Stopping {0}' -f $vm.Name)
         $jobs += Start-AzureRMAutomationRunbook -ResourceGroupName $accountResourceGroupName -AutomationAccountName $accountName -Name 'StopAzureVM' `
-            -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; connectionName=$ConnectionName; subscriptionName=$SubscriptionName}
+            -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; connectionName=$ConnectionName; subscriptionName=$SubscriptionName; scriptTimeout=$vm.script.TimeoutSeconds; scriptUri=$vm.script.ScriptUri}
     }
 
-if($jobs.count -gt 0) {
-    write-verbose 'Waiting for jobs completion'
-    $timer=Get-Date
-    do {
-        Start-Sleep -Seconds 30
-        $elapsed = ((get-date)-$timer).TotalSeconds
-        $runningCount = (($jobs | get-azurermautomationjob) | where {$_.Status -notin @('Completed','Failed','Suspended')}).Count
-        write-verbose ('Waiting for job to deque, current running count {0}, elapsed {1} secs' -f $runningCount, $elapsed)
-        $timedOut = $elapsed -gt $jobTimeout        
-    } while ($runningCount -gt 0 -and !$timedOut)
+	if($jobs.count -gt 0) {
+		write-verbose 'Waiting for jobs completion'
+		$timer=Get-Date
+		do {
+			Start-Sleep -Seconds 30
+			$elapsed = ((get-date)-$timer).TotalSeconds
+			$runningCount = (($jobs | get-azurermautomationjob) | where {$_.Status -notin @('Completed','Failed','Suspended')}).Count
+			write-verbose ('Waiting for job to deque, current running count {0}, elapsed {1} secs' -f $runningCount, $elapsed)
+			$timedOut = $elapsed -gt $jobTimeout        
+		} while ($runningCount -gt 0 -and !$timedOut)
 
-    #check if any failed
-    $failedCount = (($jobs | get-azurermautomationjob) | where {$_.Status -in @('Failed','Suspended')}).Count
-    if($failedCount -gt 0) {
-        write-error ('Some actions have failed, see jobs log on azure automation. Failed Actions:{0}' -f $failedCount)
-        $reportFailure=$true
-    }
-}
+		#check if any failed
+		$failedCount = (($jobs | get-azurermautomationjob) | where {$_.Status -in @('Failed','Suspended')}).Count
+		if($failedCount -gt 0) {
+			write-error ('Some actions have failed, see jobs log on azure automation. Failed Actions:{0}' -f $failedCount)
+			$reportFailure=$true
+		}
+	}
 
 }
 
@@ -295,7 +298,11 @@ if($jobs.count -gt 0) {
 				$scheduleInfo = GetSchedule -tags $vmTags -TagName $tagName -EnableTagName $EnableTagName
 				if ($scheduleInfo) {
 					Write-Output "   Resource Schedule for vm $($vm.name) is $scheduleInfo"
-					$vmObj = New-Object -TypeName PSObject -Property @{"Name"=$vm.Name;"ResourceGroupName"=$vm.ResourceGroupName;"Schedule"=$scheduleInfo}
+					#check if we have a script
+
+					if($vmTags[$ScriptTagName]) {$scriptInfo=$vmTags[$ScriptTagName]} else {$scriptInfo='{}'}
+
+					$vmObj = New-Object -TypeName PSObject -Property @{"Name"=$vm.Name;"ResourceGroupName"=$vm.ResourceGroupName;"Schedule"=$scheduleInfo;"Script"=$scriptInfo}
 					$vmList += $vmObj
 				}
 			}
@@ -307,7 +314,8 @@ if($jobs.count -gt 0) {
 					$scheduleInfo = GetSchedule -tags $rgTags -TagName $tagName -EnableTagName $EnableTagName
 					if($scheduleInfo) {
 						Write-Output ('   Resource Group Schedule for vm {0} is {1}' -f $vm.name, ($scheduleInfo))
-						$vmObj = New-Object -TypeName PSObject -Property @{"Name"=$vm.Name;"ResourceGroupName"=$vm.ResourceGroupName;"Schedule"=$scheduleInfo}
+						if($rgTags[$ScriptTagName]) {$scriptInfo=$rgTags[$ScriptTagName]} else {$scriptInfo='{}'}						
+						$vmObj = New-Object -TypeName PSObject -Property @{"Name"=$vm.Name;"ResourceGroupName"=$vm.ResourceGroupName;"Schedule"=$scheduleInfo;"Script"=$scriptInfo}
 						$vmList += $vmObj
 					}
 				}

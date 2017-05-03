@@ -96,16 +96,20 @@
 		[string]$VMName,
 	
 		[Parameter(Mandatory=$false)]
-		$Schedule,
+		[hashtable] $Schedule,
 		[Parameter(Mandatory=$false)]
-		$TagName='StartStopSchedule',
+		[string] $TagName='StartStopSchedule',
 		[Parameter(Mandatory=$false)]
-		$EnableTagName='EnableStartStopSchedule',
+		[string] $EnableTagName='EnableStartStopSchedule',
+		[Parameter(Mandatory=$false)]
+		[string] $ScriptTagName='ScriptStartStopSchedule',		
 		#switch not supported in powershell workflow
 		[Parameter(Mandatory=$false)]
 		[bool] $enabled=$true,		
 		[Parameter(Mandatory=$false)]
-		$ConnectionName='AzureRunAsConnection'
+		[string] $ConnectionName='AzureRunAsConnection',
+		[Parameter(Mandatory=$false)]
+		[hashtable] $shutdownscript
 		
 )
 	
@@ -141,6 +145,12 @@
 	                }
 	}
 	
+	if($shutdownscript -eq $null) {
+		$shutdownscript=@{
+			'timeoutSeconds'=900
+			'scriptUri'=''
+		}
+	}
 	# Authenticating and setting up current subscription
 	Write-Output "Authenticating"
 	
@@ -203,16 +213,13 @@ if(![String]::IsNullOrEmpty($VMName))
 
 	# Setting tag
 	$scheduleJson = ConvertTo-Json $schedule -Compress
+	$scriptJson = COnvertTo-Json $shutdownscript -Compress
 	if($enabled) {$localeIndipendentEnableValue=1} else {$localeIndipendentEnableValue=0}
 
-		if($tags.ContainsKey($tagName)) {
-			$tags[$tagName] = $scheduleJson
-		}
-		else {$tags.Add($tagName,$scheduleJson)}
-		if($tags.ContainsKey($EnableTagName)) {
-			$tags[$EnableTagName] = $localeIndipendentEnableValue
-		}
-		else {$tags.Add($EnableTagName,$localeIndipendentEnableValue)}	
+	if($tags.ContainsKey($tagName)) {$tags[$tagName] = $scheduleJson}	else {$tags.Add($tagName,$scheduleJson)}
+	if($tags.ContainsKey($EnableTagName)) {$tags[$EnableTagName] = $localeIndipendentEnableValue}	else {$tags.Add($EnableTagName,$localeIndipendentEnableValue)}	
+	if($tags.ContainsKey($ScriptTagName)) {$tags[$ScriptTagName]=$scriptJson} else {$tags.Add($ScriptTagName,$scriptJson)}
+
 
 if(![String]::IsNullOrEmpty($VMName))
 	{

@@ -1,20 +1,23 @@
 [CmdletBinding()]
 param(
-  [string] $webHook='https://s2events.azure-automation.net/webhooks?token=xrYilbQ8MrWIFvkD9jbwSKY31uvKIhrPqyQIW4w%2fA7E%3d',
-  [string] $csvFile="C:\Users\grandinid\Desktop\Furla-StartStop\FurlaSchedule.csv",
-  [String] $delimiter=';',
-  [Parameter(Mandatory=$true)]
-  [string] $subscriptionName,
-  [string] $tagName,
-  [string] $enableTagName,
-  [string] $connectionName
+    [Parameter (Mandatory=$true)]
+    [string] $webHook,
+    [Parameter (Mandatory=$true)]
+    [string] $csvFile,
+    [String] $delimiter=';',
+    [Parameter(Mandatory=$true)]
+    [string] $subscriptionName,
+    [string] $tagName='StartStopSchedule',
+    [string] $enableTagName='EnableStartStopSchedule',
+    [string] $scriptTagName='ScriptStartStopSchedule',    
+    [string] $connectionName
 )
 
 function parsetime
 {
     param([int] $day, [object] $time)
 
-    $interval=$time.($dayMap[$day]) -split '-'
+ $interval=($time.($dayMap[$day])).Replace('|',';') -split ';'
 
     return @{
         'S'=$interval[0]
@@ -54,6 +57,10 @@ foreach($schedule in $schedules) {
         "6"= ParseTime -Day 6 -Time $schedule
 
     }
+    $scriptHash=@{
+        "TimeoutSeconds"=[int]$schedule.ScriptTimeout
+        "ScriptUri"=$schedule.StopScript
+    }
   $payload =@{
     'action'='set'
     'parameters'=@{
@@ -63,6 +70,8 @@ foreach($schedule in $schedules) {
         "schedule"=$scheduleHash
         "tagName"=$tagName
         "enableTagName"=$enableTagName
+        "scriptTagName"=$scriptTagName
+        "script"=$scriptHash
         "enabled"=$enabled
         "connectionName"=$connectionName
     }
