@@ -145,12 +145,6 @@
 	                }
 	}
 	
-	if($shutdownscript -eq $null) {
-		$shutdownscript=@{
-			'timeoutSeconds'=900
-			'scriptUri'=''
-		}
-	}
 	# Authenticating and setting up current subscription
 	Write-Output "Authenticating"
 	
@@ -213,12 +207,14 @@ if(![String]::IsNullOrEmpty($VMName))
 
 	# Setting tag
 	$scheduleJson = ConvertTo-Json $schedule -Compress
-	$scriptJson = COnvertTo-Json $shutdownscript -Compress
+	if($shutdownscript) {$scriptJson = COnvertTo-Json $shutdownscript -Compress}
 	if($enabled) {$localeIndipendentEnableValue=1} else {$localeIndipendentEnableValue=0}
 
 	if($tags.ContainsKey($tagName)) {$tags[$tagName] = $scheduleJson}	else {$tags.Add($tagName,$scheduleJson)}
 	if($tags.ContainsKey($EnableTagName)) {$tags[$EnableTagName] = $localeIndipendentEnableValue}	else {$tags.Add($EnableTagName,$localeIndipendentEnableValue)}	
-	if($tags.ContainsKey($ScriptTagName)) {$tags[$ScriptTagName]=$scriptJson} else {$tags.Add($ScriptTagName,$scriptJson)}
+	if($shutdownscript) {
+		if($tags.ContainsKey($ScriptTagName)) {$tags[$ScriptTagName]=$scriptJson} else {$tags.Add($ScriptTagName,$scriptJson)}
+	}
 
 
 if(![String]::IsNullOrEmpty($VMName))

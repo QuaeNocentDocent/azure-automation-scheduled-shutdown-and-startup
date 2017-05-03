@@ -9,9 +9,7 @@
         [string] $vmName,
 		[Parameter(Mandatory=$true)]
         [string] $resourceGroupName,
-		[string] $scriptUri,
-		[int] $scriptTimeout
-		
+		[string] $shutdownScript
 	)
 
 
@@ -41,7 +39,7 @@
 	}
 
 	$subscription = Select-AzureRmSubscription -SubscriptionName $subscriptionName -ErrorAction SilentlyContinue -ErrorVariable subErr
-
+	$script = convertfrom-json $shutdownScript
 	if($subErr -or !$subscription) {
         if ($subErr) {throw $subErr.tostring()}
         else {throw 'Error getting subscription'}
@@ -52,7 +50,7 @@
 		#http://www.gi-architects.co.uk/2016/07/custom-script-extension-for-arm-vms-in-azure/
 		if($vm.StorageProfile.OsDisk.OsType -ieq 'Windows') {
 			#the script is synchronous so we must possibly rise the stop timeout, the script is always invoked as powershell  
-			# $result=set-AzureRmVMCustomScriptExtension -ResourceGroupName preAzureSDK1 -VMName preAzureSDK1 -Run 'test.ps1' -Name TestPS -FileUri @('c:\temp\test.ps1') -Location westeurope -ForceRerun "go"
+			# $result=set-AzureRmVMCustomScriptExtension -ResourceGroupName preAzureSDK1 -VMName preAzureSDK1 -Run $script.run' -Name TestPS -FileUri @('c:\temp\test.ps1') -Location westeurope -ForceRerun "go"
 			# get-AzureRmVMCustomScriptExtension -ResourceGroupName preAzureSDK1 -VMName preAzureSDK1 -Name TestPS
 			#must IF NOT THE SCRIPT IS EXECUTED AGAIN WHEN THE VM STARTS
 			#Remove-AzurermVMCustomScriptExtension -ResourceGroupName preAzureSDK1 -VMName preAzureSDK1 –Name TestPS -Force

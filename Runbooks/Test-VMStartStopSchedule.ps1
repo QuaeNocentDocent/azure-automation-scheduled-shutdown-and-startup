@@ -105,7 +105,7 @@ Function RunInHybrid
 			    -TenantId $servicePrincipalConnection.TenantId `
 			    -ApplicationId $servicePrincipalConnection.ApplicationId `
 			    -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
-		## MIssing shutdown script management  scriptTimeout=$vm.script.TimeoutSeconds; scriptUri=$vm.script.ScriptUri
+		## MIssing shutdown script management  script=$vm.script.run
         Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
     }
 
@@ -183,7 +183,7 @@ Function RunOnAzure
     foreach($vm in $vmsToStop) {
         write-output ('Stopping {0}' -f $vm.Name)
         $jobs += Start-AzureRMAutomationRunbook -ResourceGroupName $accountResourceGroupName -AutomationAccountName $accountName -Name 'StopAzureVM' `
-            -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; connectionName=$ConnectionName; subscriptionName=$SubscriptionName; scriptTimeout=$vm.script.TimeoutSeconds; scriptUri=$vm.script.ScriptUri}
+            -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; connectionName=$ConnectionName; subscriptionName=$SubscriptionName; script=$vm.script}
     }
 
 	if($jobs.count -gt 0) {
