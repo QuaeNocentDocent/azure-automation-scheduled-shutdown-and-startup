@@ -65,7 +65,31 @@
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/wh-StartStopSchedule.ps1')]",
               "version": "1.0.0.0"
             }
-          }          
+          },
+          {
+            "name": "StartAzureVM",
+            "description": "Starts an Azure VM",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/StartAzureVM.ps1')]",
+              "version": "1.0.0.0"
+            }
+          },
+          {
+            "name": "StopAzureVM",
+            "description": "Stops an Azure VM",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/StopAzureVM.ps1')]",
+              "version": "1.0.0.0"
+            }
+          }       
         ],
         // to be converted in array
         "scheduleName": "Hourly",

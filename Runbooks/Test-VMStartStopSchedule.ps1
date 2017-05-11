@@ -75,10 +75,11 @@
 		}
 
 		$schedule=$tags[$TagName]        
-		$enabled=[bool] $tags[$EnableTagName]
-		if ($enabled) {return [string]$schedule}
+		$enabled=$tags[$EnableTagName]
+    write-verbose ('Getting info for {0}. Value is: {1}' -f $EnableTagName, $tags[$EnableTagName])
+		if ($enabled -eq 1) {return [string]$schedule}
 		else {
-			write-output 'Schedule is disabled, skipping'
+			write-warning 'Schedule is disabled, skipping'
 			return $null
 		}
 	}
@@ -448,15 +449,21 @@ Function RunOnAzure
 	}
 
     $HybridWorkerRegKeyValues = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\HybridRunbookWorker" -ErrorAction SilentlyContinue
-
-    If ($HybridWorkerRegKeyValues) {
-        write-output 'Running on Hybrid using jobs'
-        RunInHybrid
-    }
-    else {
-        write-output 'Running on Azure using runbooks'
-        RunOnAzure
-    }
+  try{
+      If ($HybridWorkerRegKeyValues) {
+          write-output 'Running on Hybrid using jobs'
+          RunInHybrid
+      }
+      else {
+          write-output 'Running on Azure using runbooks'
+          RunOnAzure
+      }
+  }
+  catch {
+    #generic exception catcher
+    write-error ('Exception executing actions on VMs. {0}' -f $_)
+    $reportFailure=$true
+  }
 
 
 <#
