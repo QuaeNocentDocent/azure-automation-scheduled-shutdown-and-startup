@@ -12,7 +12,7 @@
 		[string] $shutdownScript
 	)
 
-
+$error.clear()
 	try
 	{
 		# Get the connection "AzureRunAsConnection "
@@ -69,4 +69,6 @@
 		}
 	
 	}
-    Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
+    Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName -Force
+
+    if ($error) {throw ('Error stopping {0}. {1}' -f $vmName, $error[0])}

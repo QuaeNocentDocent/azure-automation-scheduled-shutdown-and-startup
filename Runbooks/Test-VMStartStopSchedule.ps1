@@ -173,6 +173,7 @@ Function RunOnAzure
     }
 
 	$jobs=@()
+  $expectedJobs=$vmsToStart.Count+$vmsToStop.Count
 
     foreach($vm in $vmsToStart) {
         write-output ('Starting {0}' -f $vm.Name)
@@ -183,8 +184,18 @@ Function RunOnAzure
 
     foreach($vm in $vmsToStop) {
         write-output ('Stopping {0}' -f $vm.Name)
+        $params=@{
+          vmName=$vm.Name
+          resourceGroupName=$vm.ResourceGroupName
+          connectionName=$ConnectionName
+          subscriptionName=$SubscriptionName
+          shutdownScript=$vm.script
+        }
+        write-verbose 'Dumping parameters'
+        write-verbose $params.keys
+        write-verbose $params.Values        
         $jobs += Start-AzureRMAutomationRunbook -ResourceGroupName $accountResourceGroupName -AutomationAccountName $accountName -Name 'StopAzureVM' `
-            -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; connectionName=$ConnectionName; subscriptionName=$SubscriptionName; script=$vm.script}
+            -Parameters $params
     }
 
 	if($jobs.count -gt 0) {
@@ -205,6 +216,10 @@ Function RunOnAzure
 			$reportFailure=$true
 		}
 	}
+  if($jobs.count -ne $expectedJobs) {
+    write-error ('Some start/stop actions have failed. Expected jobs {0} actual jobs {1}' -f $expectedJobs, $jobs.Count)
+    $reportFailure=$true
+  }
 
 }
 

@@ -12,7 +12,7 @@
 		
 	)
 
-
+$Error.Clear()
 	try
 	{
 		# Get the connection "AzureRunAsConnection "
@@ -46,3 +46,4 @@
 	} 
 
     Start-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName 
+    if ($error) {throw ('Error starting {0}. {1}' -f $vmName, $error[0])}
