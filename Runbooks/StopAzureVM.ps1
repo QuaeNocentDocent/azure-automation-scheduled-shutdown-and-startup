@@ -6,9 +6,9 @@
 		[Parameter(Mandatory=$false)]
 		$ConnectionName='AzureRunAsConnection',
 		[Parameter(Mandatory=$true)]
-        [string] $vmName,
+    [string] $vmName,
 		[Parameter(Mandatory=$true)]
-        [string] $resourceGroupName,
+    [string] $resourceGroupName,
 		[string] $shutdownScript
 	)
 
@@ -41,10 +41,10 @@ $error.clear()
 	$subscription = Select-AzureRmSubscription -SubscriptionName $subscriptionName -ErrorAction SilentlyContinue -ErrorVariable subErr
 	$script = convertfrom-json $shutdownScript
 	if($subErr -or !$subscription) {
-        if ($subErr) {throw $subErr.tostring()}
-        else {throw 'Error getting subscription'}
+    if ($subErr) {throw $subErr.tostring()}
+    else {throw 'Error getting subscription'}
 	}
-	if(! [String]::IsNullOrEmpty($scriptUri)) {
+	if(! [String]::IsNullOrEmpty($script)) {
 		#check to see if it is linux or windows
 		$vm = get-azurermvm -ResourceGroupName $resourceGroupName -Name $vmName
 		#http://www.gi-architects.co.uk/2016/07/custom-script-extension-for-arm-vms-in-azure/

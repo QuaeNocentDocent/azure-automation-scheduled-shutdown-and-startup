@@ -51,11 +51,9 @@
 		$ScriptTagName='ScriptStartStopSchedule',		
 		[Parameter(Mandatory=$false)]
 		$ConnectionName='AzureRunAsConnection',
-        [int] $maxConcurrency=50,
-        [int] $jobTimeout=300,
-        [string] $accountName='',
-        [string] $accountResourceGroupName='',
-        [string] $accountSubscriptionName=''
+    [int] $maxConcurrency=50,
+    [int] $jobTimeout=300,
+    [string] $accountSubscriptionName='' #used in the special case where the automation account is not in the same sub of the VMs
 		
 	)
     
@@ -84,96 +82,109 @@
 		}
 	}
 
-Function RunInHybrid
-{
-    <# Standard Powershell JOb way. Alas it doesn't work cause the jobs don't get the certificate private key, this is really strange. I could have used a username/password pair, but it is not security wise, so decided to spawn automation jobs instead.
-        Anyway let's keep the code in place, 'cause if it will ever work it is much lighter and faster #>
+  Function RunInHybrid
+  {
+      <# Standard Powershell JOb way. Alas it doesn't work cause the jobs don't get the certificate private key, this is really strange. I could have used a username/password pair, but it is not security wise, so decided to spawn automation jobs instead.
+          Anyway let's keep the code in place, 'cause if it will ever work it is much lighter and faster #>
 
-    $startVM={
-        param($vmName, $resourceGroupName, $servicePrincipalConnection)  
-		    Add-AzureRmAccount `
-			    -ServicePrincipal `
-			    -TenantId $servicePrincipalConnection.TenantId `
-			    -ApplicationId $servicePrincipalConnection.ApplicationId `
-			    -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
-        Start-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
+      $startVM={
+          param($vmName, $resourceGroupName, $servicePrincipalConnection)  
+          Add-AzureRmAccount `
+            -ServicePrincipal `
+            -TenantId $servicePrincipalConnection.TenantId `
+            -ApplicationId $servicePrincipalConnection.ApplicationId `
+            -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+          Start-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
+      }
+
+      $stopVM={
+          param($vmName, $resourceGroupName, $servicePrincipalConnection) 
+          Add-AzureRmAccount `
+            -ServicePrincipal `
+            -TenantId $servicePrincipalConnection.TenantId `
+            -ApplicationId $servicePrincipalConnection.ApplicationId `
+            -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+      ## MIssing shutdown script management  script=$vm.script.run
+          Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
+      }
+
+
+      $jobs=@()
+
+          foreach($vm in $vmsToStart) {
+              write-output ('Starting {0}' -f $vm.Name)
+              $jobs+=start-job -ScriptBlock $startVM -ArgumentList @($vm.Name, $vm.ResourceGroupName, $servicePrincipalConnection) -Name ('Start-{0}' -f $vm.Name)
+              $jobs += Start-AzureRMAutomationRunbook -ResourceGroupName 'AutoTest' -AutomationAccountName 'prelabtest1' -Name 'StartAzureVM' -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; servicePrincipalConnection=$servicePrincipalConnection}
+              $timer=get-date
+              do {
+                  Start-Sleep -Seconds 30
+                  $runningCount = (get-job -State Running).Count
+                  $elapsed = ((get-date)-$timer).TotalSeconds
+                  write-verbose ('Waiting for job to deque, current running count {0}, elapsed {1} secs' -f $runningCount, $elapsed)
+                  $timedout = $elapsed -gt $jobTimeout
+              } while ($runningCount -ge $maxConcurrency -and !$timedOut)
+          }
+
+          foreach($vm in $vmsToStop) {
+              write-output ('Stopping {0}' -f $vm.Name)
+              $jobs+=start-job -ScriptBlock $stopVM -ArgumentList @($vm.Name, $vm.ResourceGroupName, $servicePrincipalConnection) -Name ('Stop-{0}' -f $vm.Name)
+              $jobs += Start-AzureRMAutomationRunbook -ResourceGroupName 'AutoTest' -AutomationAccountName 'prelabtest1' -Name 'StopAzureVM' -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; servicePrincipalConnection=$servicePrincipalConnection}
+              $timer=get-date
+              do {
+                  Start-Sleep -Seconds 30
+                  $runningCount = (get-job -State Running).Count
+                  $elapsed = ((get-date)-$timer).TotalSeconds
+                  write-verbose ('Waiting for job to deque, current running count {0}, elapsed {1} secs' -f $runningCount, $elapsed)
+                  $timedout = $elapsed -gt $jobTimeout
+              } while ($runningCount -ge $maxConcurrency -and !$timedOut)
+          }
+      if($jobs.count -gt 0) {
+          write-verbose 'Waiting for jobs completion'
+          wait-job -Job $jobs -Timeout $jobTimeout
+          $jobs | receive-job
+          foreach($j in $jobs) {
+              $job = get-job -id $j.id
+              if ($job.State -ine 'Completed') {
+                  write-error ('Error in job {0}' -f $job.Name)
+                  $job
+                  $reportFailure=$true
+              }
+          }
+          $jobs | Remove-Job
+      }
+
+
+  }
+
+  Function RunOnAzure
+  {
+    #Get current job Id
+    $CurrentJobId= $PSPrivateMetadata.JobId.Guid
+    if(! [String]::IsNullOrEmpty($accountSubscriptionName)) {
+      $accountSub=Select-AzureRmSubscription -SubscriptionName $accountSubscriptionName -TenantId $servicePrincipalConnection.TenantId
+      if (! $accountSub) {
+          throw ('Invalid Automation Account Sub Specified {0}' -f $accountSubscriptionName)
+      }
+    }    
+    $AutomationAccounts = Find-AzureRmResource -ResourceType Microsoft.Automation/AutomationAccounts
+    foreach ($item in $AutomationAccounts) 
+    {
+      # Loop through each Automation account to find this job
+      $Job = Get-AzureRmAutomationJob -ResourceGroupName $item.ResourceGroupName -AutomationAccountName $item.Name -Id $CurrentJobId -ErrorAction SilentlyContinue
+      if ($Job) 
+      {
+        $AutomationAccountName = $item.Name
+        $AutomationAccountResourceGroupName = $item.ResourceGroupName
+        $RunbookName = $Job.RunbookName
+        break
+      }
     }
-
-    $stopVM={
-        param($vmName, $resourceGroupName, $servicePrincipalConnection) 
-		    Add-AzureRmAccount `
-			    -ServicePrincipal `
-			    -TenantId $servicePrincipalConnection.TenantId `
-			    -ApplicationId $servicePrincipalConnection.ApplicationId `
-			    -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
-		## MIssing shutdown script management  script=$vm.script.run
-        Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
-    }
-
-
-    $jobs=@()
-
-        foreach($vm in $vmsToStart) {
-            write-output ('Starting {0}' -f $vm.Name)
-            $jobs+=start-job -ScriptBlock $startVM -ArgumentList @($vm.Name, $vm.ResourceGroupName, $servicePrincipalConnection) -Name ('Start-{0}' -f $vm.Name)
-            $jobs += Start-AzureRMAutomationRunbook -ResourceGroupName 'AutoTest' -AutomationAccountName 'prelabtest1' -Name 'StartAzureVM' -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; servicePrincipalConnection=$servicePrincipalConnection}
-            $timer=get-date
-            do {
-                Start-Sleep -Seconds 30
-                $runningCount = (get-job -State Running).Count
-                $elapsed = ((get-date)-$timer).TotalSeconds
-                write-verbose ('Waiting for job to deque, current running count {0}, elapsed {1} secs' -f $runningCount, $elapsed)
-                $timedout = $elapsed -gt $jobTimeout
-            } while ($runningCount -ge $maxConcurrency -and !$timedOut)
-        }
-
-        foreach($vm in $vmsToStop) {
-            write-output ('Stopping {0}' -f $vm.Name)
-            $jobs+=start-job -ScriptBlock $stopVM -ArgumentList @($vm.Name, $vm.ResourceGroupName, $servicePrincipalConnection) -Name ('Stop-{0}' -f $vm.Name)
-            $jobs += Start-AzureRMAutomationRunbook -ResourceGroupName 'AutoTest' -AutomationAccountName 'prelabtest1' -Name 'StopAzureVM' -Parameters @{vmName=$vm.Name; resourceGroupName=$vm.ResourceGroupName; servicePrincipalConnection=$servicePrincipalConnection}
-            $timer=get-date
-            do {
-                Start-Sleep -Seconds 30
-                $runningCount = (get-job -State Running).Count
-                $elapsed = ((get-date)-$timer).TotalSeconds
-                write-verbose ('Waiting for job to deque, current running count {0}, elapsed {1} secs' -f $runningCount, $elapsed)
-                $timedout = $elapsed -gt $jobTimeout
-            } while ($runningCount -ge $maxConcurrency -and !$timedOut)
-        }
-    if($jobs.count -gt 0) {
-        write-verbose 'Waiting for jobs completion'
-        wait-job -Job $jobs -Timeout $jobTimeout
-        $jobs | receive-job
-        foreach($j in $jobs) {
-            $job = get-job -id $j.id
-            if ($job.State -ine 'Completed') {
-                write-error ('Error in job {0}' -f $job.Name)
-                $job
-                $reportFailure=$true
-            }
-        }
-        $jobs | Remove-Job
-    }
-
-
-}
-
-Function RunOnAzure
-{
-
     #frist of all some checks
-    if([String]::IsNullOrEmpty($accountName) -or [String]::IsNullOrEmpty($accountResourceGroupName)) {
+    if([String]::IsNullOrEmpty($AutomationAccountName) -or [String]::IsNullOrEmpty($AutomationAccountResourceGroupName)) {
         throw 'Missing accountNamer and ResourceGroupName needed to run on azure'
     }
-    if(! [String]::IsNullOrEmpty($accountSubscriptionName)) {
-        $accountSub=Select-AzureRmSubscription -SubscriptionName $accountSubscriptionName -TenantId $servicePrincipalConnection.TenantId
-        if (! $accountSub) {
-            throw ('Invalid Automation Account Sub Specified {0}' -f $accountSubscriptionName)
-        }
-    }
-
-	$jobs=@()
-  $expectedJobs=$vmsToStart.Count+$vmsToStop.Count
+    $jobs=@()
+    $expectedJobs=$vmsToStart.Count+$vmsToStop.Count
 
     foreach($vm in $vmsToStart) {
         write-output ('Starting {0}' -f $vm.Name)
@@ -198,30 +209,29 @@ Function RunOnAzure
             -Parameters $params
     }
 
-	if($jobs.count -gt 0) {
-		write-verbose 'Waiting for jobs completion'
-		$timer=Get-Date
-		do {
-			Start-Sleep -Seconds 30
-			$elapsed = ((get-date)-$timer).TotalSeconds
-			$runningCount = (($jobs | get-azurermautomationjob) | where {$_.Status -notin @('Completed','Failed','Suspended')}).Count
-			write-verbose ('Waiting for job to deque, current running count {0}, elapsed {1} secs' -f $runningCount, $elapsed)
-			$timedOut = $elapsed -gt $jobTimeout        
-		} while ($runningCount -gt 0 -and !$timedOut)
+    if($jobs.count -gt 0) {
+      write-verbose 'Waiting for jobs completion'
+      $timer=Get-Date
+      do {
+        Start-Sleep -Seconds 30
+        $elapsed = ((get-date)-$timer).TotalSeconds
+        $runningCount = (($jobs | get-azurermautomationjob) | where {$_.Status -notin @('Completed','Failed','Suspended')}).Count
+        write-verbose ('Waiting for job to deque, current running count {0}, elapsed {1} secs' -f $runningCount, $elapsed)
+        $timedOut = $elapsed -gt $jobTimeout        
+      } while ($runningCount -gt 0 -and !$timedOut)
 
-		#check if any failed
-		$failedCount = (($jobs | get-azurermautomationjob) | where {$_.Status -in @('Failed','Suspended')}).Count
-		if($failedCount -gt 0) {
-			write-error ('Some actions have failed, see jobs log on azure automation. Failed Actions:{0}' -f $failedCount)
-			$reportFailure=$true
-		}
-	}
-  if($jobs.count -ne $expectedJobs) {
-    write-error ('Some start/stop actions have failed. Expected jobs {0} actual jobs {1}' -f $expectedJobs, $jobs.Count)
-    $reportFailure=$true
+        #check if any failed
+      $failedCount = (($jobs | get-azurermautomationjob) | where {$_.Status -in @('Failed','Suspended')}).Count
+      if($failedCount -gt 0) {
+        write-error ('Some actions have failed, see jobs log on azure automation. Failed Actions:{0}' -f $failedCount)
+        $reportFailure=$true
+      }
+    }
+    if($jobs.count -ne $expectedJobs) {
+      write-error ('Some start/stop actions have failed. Expected jobs {0} actual jobs {1}' -f $expectedJobs, $jobs.Count)
+      $reportFailure=$true
+    }
   }
-
-}
 
 	# Getting Azure PS Version
 	$azPsVer = (Get-Module -ListAvailable -Name Azure)[0]
@@ -280,33 +290,32 @@ Function RunOnAzure
 	{
 		Write-Output "Getting VMs from Resource Group $($rg.ResourceGroupName)"
 		$vms = Find-AzureRmResource -ResourceGroupNameContains $rg.ResourceGroupName -ResourceType "Microsoft.Compute/virtualMachines"
-        if($azRmPsVer.Version.Major -eq 1) {
-            #in this version we get an array of hashtables with keys name / value
-            #let's transform it in a proper hashtable
-            $rgTags=@{}
-            foreach($t in $rg.tags) {
-                $rgTags.Add($t.Name, $t.Value)
-            }
+    if($azRmPsVer.Version.Major -eq 1) {
+        #in this version we get an array of hashtables with keys name / value
+        #let's transform it in a proper hashtable
+        $rgTags=@{}
+        foreach($t in $rg.tags) {
+            $rgTags.Add($t.Name, $t.Value)
         }
-        else {
-            $rgTags =$rg.Tags
-        }		
+    }
+    else {
+        $rgTags =$rg.Tags
+    }		
 		foreach ($vm in $vms)
 		{
 			Write-Output "VM to be evaluated: $($vm.name)"
-
-#now Azure Automation is a little messy with modules if you add the mess the Azure PS team introduced you know we're in trouble
-            if($azRmPsVer.Version.Major -eq 1) {
-                #in this version we get an array of hashtables with keys name / value
-                #let's transform it in a proper hashtable
-                $vmTags=@{}
-                foreach($t in $vm.tags) {
-                    $vmTags.Add($t.Name, $t.Value)
-                }
-            }
-            else {
-                $vmTags =$vm.Tags       
-            } 
+      #now Azure Automation is a little messy with modules if you add the mess the Azure PS team introduced you know we're in trouble
+      if($azRmPsVer.Version.Major -eq 1) {
+          #in this version we get an array of hashtables with keys name / value
+          #let's transform it in a proper hashtable
+          $vmTags=@{}
+          foreach($t in $vm.tags) {
+              $vmTags.Add($t.Name, $t.Value)
+          }
+      }
+      else {
+          $vmTags =$vm.Tags       
+      } 
 
 			if ($vmTags.Keys -icontains $TagName)
 			{
@@ -463,7 +472,7 @@ Function RunOnAzure
 		}
 	}
 
-    $HybridWorkerRegKeyValues = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\HybridRunbookWorker" -ErrorAction SilentlyContinue
+  $HybridWorkerRegKeyValues = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\HybridRunbookWorker" -ErrorAction SilentlyContinue
   try{
       If ($HybridWorkerRegKeyValues) {
           write-output 'Running on Hybrid using jobs'
@@ -481,21 +490,21 @@ Function RunOnAzure
   }
 
 
-<#
-	# Starting VMs
-	foreach -parallel -ThrottleLimit $vmsToStart.Count  ($vm in $vmsToStart)
-	{
-		Write-Output "Starting VM $($vm.name)"
-		Start-AzureRmVM -Name $vm.name -ResourceGroupName $vm.ResourceGroupName 
-	}
+  <#
+    # Starting VMs
+    foreach -parallel -ThrottleLimit $vmsToStart.Count  ($vm in $vmsToStart)
+    {
+      Write-Output "Starting VM $($vm.name)"
+      Start-AzureRmVM -Name $vm.name -ResourceGroupName $vm.ResourceGroupName 
+    }
 
-	# Stopping VMs
-	foreach -parallel -ThrottleLimit $vmsToStop.Count  ($vm in $vmsToStop)
-	{
-		Write-Output "Stopping VM $($vm.name)"
-		Stop-AzureRmVM -Name $vm.name -ResourceGroupName $vm.ResourceGroupName -Force
-	}
-#>
+    # Stopping VMs
+    foreach -parallel -ThrottleLimit $vmsToStop.Count  ($vm in $vmsToStop)
+    {
+      Write-Output "Stopping VM $($vm.name)"
+      Stop-AzureRmVM -Name $vm.name -ResourceGroupName $vm.ResourceGroupName -Force
+    }
+  #>
 
 	Write-Output "End of runbook execution"
     if($reportFailure) {
