@@ -1,3 +1,3 @@
 ResourceGroup,VM,Enabled,StopScript,ScriptTimeout,TimeZone,Sun,Mon,Tue,Wed,Thu,Fri,Sat,Description,Notes
-preAzureSdk1,preAzureSdk1,1,powershell.exe -ExecutionPolicy Unrestricted -file c:\\temp\\test.ps1,150,Central European Standard Time,0|0,8|20,8|20,8|20,8|20,8|20,0|0,turned off 8:00 PM --> 8:00 AM (Alway Saturday and Sunday),
+preAzureSdk1,preAzureSdk1,1,powershell.exe -ExecutionPolicy Unrestricted -file c:\temp\test.ps1,150,Central European Standard Time,0|0,8|20,8|20,8|20,8|20,8|20,0|0,turned off 8:00 PM --> 8:00 AM (Alway Saturday and Sunday),
 GollumOnDocker,GollumD,1,sh /tmp/test.sh,60,Central European Standard Time,0|0,8|20,8|20,8|20,8|20,8|20,0|0,turned off 8:00 PM --> 8:00 AM (Alway Saturday and Sunday),

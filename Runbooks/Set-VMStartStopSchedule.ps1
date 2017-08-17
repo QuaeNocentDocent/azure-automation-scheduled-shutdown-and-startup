@@ -96,7 +96,7 @@
 		[string]$VMName,
 	
 		[Parameter(Mandatory=$false)]
-		[hashtable] $Schedule,
+		[string] $Schedule,
 		[Parameter(Mandatory=$false)]
 		[string] $TagName='StartStopSchedule',
 		[Parameter(Mandatory=$false)]
@@ -109,7 +109,7 @@
 		[Parameter(Mandatory=$false)]
 		[string] $ConnectionName='AzureRunAsConnection',
 		[Parameter(Mandatory=$false)]
-		[hashtable] $shutdownscript
+		[string] $shutdownscript
 		
 )
 	
@@ -118,7 +118,7 @@
 	{
 		# Sunday is 0
 		# it accept only hour numbers from 1 to 24 (so 24h notation)
-		$schedule= @{
+		$schedule= (@{
 	                    "TzId"="Central Standard Time";
 	                    "0"= @{
 	                                "S"="11";
@@ -142,7 +142,7 @@
 	                                "S"="11";
 	                                "E"="17"}
 
-	                }
+	                }) | convertto-json -Depth 4 -Compress
 	}
 	
 	# Authenticating and setting up current subscription
@@ -205,9 +205,10 @@ if(![String]::IsNullOrEmpty($VMName))
 		$tags = (Get-AzureRmResourceGroup -ResourceGroupName $resourceGroupName).Tags
 	}
 
-	# Setting tag
-	$scheduleJson = ConvertTo-Json $schedule -Compress
-	if($shutdownscript) {$scriptJson = COnvertTo-Json $shutdownscript -Compress}
+  # Setting tag
+  #compress schedule
+	$scheduleJson = $schedule | ConvertFrom-Json | ConvertTo-Json -Depth 4 -Compress
+	if($shutdownscript) {$scriptJson = $shutdownscript | convertfrom-json | COnvertTo-Json -Depth 4 -Compress}
 	if($enabled) {$localeIndipendentEnableValue=1} else {$localeIndipendentEnableValue=0}
 
 	if($tags.ContainsKey($tagName)) {$tags[$tagName] = $scheduleJson}	else {$tags.Add($tagName,$scheduleJson)}

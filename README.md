@@ -23,8 +23,7 @@ Deployment steps:
 Since manually editing the json tag is far from optimal from the Ibiza Portal a combination of an Excel Spreadsheet (saved in CSV format) and an Helper script (Import-VMStartStopSchedule.ps1) that invokes a web hook can be used to set the proper scheduling.
 The CSV file must have the following format, all the columns after 'Sat' are ignored and can be used for documentation purposes.
 
-|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
-|ResourceGroup|VM|Enabled|StopScript|ScriptTimeout|TimeZone|Sun|Mon|Tue|Wed|Thu|Fri|Sat|Description|Notes|
+| ResourceGroup | VM | Enabled | StopScript | ScriptTimeout | TimeZone | Sun | Mon | Tue | Wed | Thu | Fri | Sat | Description | Notes |
 |----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
 |preAzureSdk1|preAzureSdk1|1|powershell.exe -ExecutionPolicy Unrestricted -file c:\\temp\\test.ps1|150|Central European Standard Time|0&#124;0|8&#124;20|8&#124;20|8&#124;20|8&#124;20|8&#124;20|0&#124;0|turned off 8:00 PM --> 8:00 AM (Alway Saturday and Sunday)|||	
 |GollumOnDocker|GollumD|1|sh /tmp/test.sh|60|Central European Standard Time|0&#124;0|8&#124;20|8&#124;20|8&#124;20|8&#124;20|8&#124;20|0&#124;0|turned off 8:00 PM --> 8:00 AM (Alway Saturday and Sunday)|||

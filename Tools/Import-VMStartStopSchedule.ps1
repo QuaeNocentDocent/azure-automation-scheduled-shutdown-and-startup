@@ -4,7 +4,7 @@ param(
     [string] $webHook,
     [Parameter (Mandatory=$true)]
     [string] $csvFile,
-    [String] $delimiter=';',
+    [String] $delimiter=',',
     [Parameter(Mandatory=$true)]
     [string] $subscriptionName,
     [string] $tagName='StartStopSchedule',

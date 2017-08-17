@@ -53,7 +53,7 @@
 		[Parameter(Mandatory=$false)]
 		[string]$VMName,
 		[Parameter(Mandatory=$false)]
-		$TagName='StartStopSchedule',
+		[string[]] $TagNames=@('StartStopSchedule','EnableStartStopSchedule','ScriptStartStopSchedule'),
 		[Parameter(Mandatory=$false)]
 		$ConnectionName='AzureRunAsConnection'
 	)
