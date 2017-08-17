@@ -89,6 +89,18 @@
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/StopAzureVM.ps1')]",
               "version": "1.0.0.0"
             }
+          },
+          {
+            "name": "Run-VMScriptAsync",
+            "description": "Run an extension script on the VM",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Run-VMScriptAsync.ps1')]",
+              "version": "1.0.0.0"
+            }
           }       
         ],
         // to be converted in array

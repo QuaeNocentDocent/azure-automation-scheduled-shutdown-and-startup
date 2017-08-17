@@ -45,5 +45,5 @@ $Error.Clear()
         else {throw 'Error getting subscription'}
 	} 
 
-    Start-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName 
+    Start-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
     if ($error) {throw ('Error starting {0}. {1}' -f $vmName, $error[0])}

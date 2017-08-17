@@ -59,6 +59,7 @@ foreach($schedule in $schedules) {
     }
     $scriptHash=@{
         "run"=$schedule.StopScript
+        "timeOut"=$schedule.ScriptTimeout
     }
   $payload =@{
     'action'='set'
