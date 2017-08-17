@@ -48,7 +48,7 @@ switch ($context.action) {
     if(![String]::IsNullOrEmpty($context.parameters.enabled)) {$OptionalParameters.Add('enabled', $context.parameters.enabled)}    
     if(![String]::IsNullOrEmpty($context.parameters.connectionName)) {$OptionalParameters.Add('connectionName', $context.parameters.connectionName)}      
     if(![String]::IsNullOrEmpty($context.parameters.scriptTagName)) {$OptionalParameters.Add('ScriptTagName', $context.parameters.scriptTagName)}      
-    if(![String]::IsNullOrEmpty($context.parameters.script)) {$OptionalParameters.Add('shutdownScript', ($context.parameters.script | convertto-json)}              
+    if(![String]::IsNullOrEmpty($context.parameters.script)) {$OptionalParameters.Add('shutdownScript', ($context.parameters.script | convertto-json))}              
     .\Set-VMStartStopSchedule.ps1 -subscriptionName $context.parameters.subscriptionName -resourceGroupName $context.parameters.resourceGroupName `
       -vmName $context.parameters.vmName -schedule ($context.parameters.schedule | convertto-json -Depth 4) @OptionalParameters
   }
