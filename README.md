@@ -7,8 +7,8 @@ Please refer to the following articles:
 
 In addition to the format specified in the article we have:
 
-- a tag (defualts to ) to Enable (=1) or disable the schedule (=0) so it's easy to temporarily suspend the start/stop form a VM/RG from the portal
-- a tag (dafults to ) to specify a shutdown script to be run before turning off the VM. The json payload is {"run":"command line", "timeout": 60}. Where the timeout is in seconds. In this version we support only shutdown script (not start up but they're an easy add) and scripts that are local to the VM. 
+- a tag (defaults to EnableStartStopSchedule) to Enable (=1) or Disable the schedule (=0) so it's easy to temporarily suspend the start/stop form a VM/RG from the portal
+- a tag (dafults to ScriptStartStopSchedule) to specify a shutdown script to be run before turning off the VM. The json payload is {"run":"command line", "timeout": 60}. Where the timeout is in seconds. In this version we support only shutdown scripts (start up are an easy add) and scripts that are local to the VM (not yet implemented the logic to download them from a storage account). 
 - for a given week day:
   - if StartTime -eq EndTime we do nothing (skip)
   - StartTime -eq 0 means 12AM
