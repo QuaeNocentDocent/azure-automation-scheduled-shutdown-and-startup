@@ -37,7 +37,7 @@ function Get-AzureRmCachedAccessToken()
    
   $currentAzureContext = Get-AzureRmContext
   $profileClient = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($azureRmProfile)
-  Write-Debug ("Getting access token for tenant" + $currentAzureContext.Subscription.TenantId)
+  Write-Verbose ("Getting access token for tenant" + $currentAzureContext.Subscription.TenantId)
   $token = $profileClient.AcquireAccessToken($currentAzureContext.Subscription.TenantId)
   $token.AccessToken
 }
@@ -45,17 +45,14 @@ function Get-AzureRmCachedAccessToken()
 function Delete-Extension()
 {
   param(
-    [String] $SubscriptionID,
-    [String] $ResourceGroupName,
-    [String] $VMName,
+    [String] $vmUri,
     [String] $ExtensionName,
     [String] $APIVersion,
     [String] $token
   )
 
   Write-Verbose 'Delete Extension'
-  $Uri = 'https://management.azure.com/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Compute/virtualMachines/{2}/extensions/{3}?api-version={4}' -f `
-    $SubscriptionID, $Resourcegroupname, $VMName, $ExtensionName, $APIVersion
+  $Uri = 'https://management.azure.com{0}/extensions/{1}?api-version={2}' -f $vmUri, $ExtensionName, $APIVersion
   $params = @{
     ContentType = 'application/x-www-form-urlencoded'
     Headers     = @{
@@ -71,17 +68,14 @@ function Delete-Extension()
 function Get-ScriptStatus()
 {
   param(
-    [String] $SubscriptionID,
-    [String] $ResourceGroupName,
-    [String] $VMName,
+    [String] $vmUri,
     [String] $ExtensionName,
     [String] $APIVersion,
     [String] $token
   )
 
   Write-Verbose 'Get Extension message info'
-  $Uri = 'https://management.azure.com/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Compute/virtualMachines/{2}/extensions/{3}?$expand=instanceView&api-version={4}' `
-    -f $SubscriptionID, $Resourcegroupname, $VMName, $ExtensionName, $APIVersion
+  $Uri = 'https://management.azure.com{0}/extensions/{1}?$expand=instanceView&api-version={2}' -f $vmUri, $ExtensionName, $APIVersion
   $params = @{
     ContentType = 'application/x-www-form-urlencoded'
     Headers     = @{
@@ -91,6 +85,7 @@ function Get-ScriptStatus()
     URI         = $Uri
   }
   $StatusInfo = Invoke-RestMethod @params
+  write-verbose ('Status: {0}' -f $statusInfo.properties.provisioningState)
   return $StatusInfo
 }
 
@@ -98,17 +93,14 @@ function Get-ScriptStatus()
 function Run-Script()
 {
   param(
-    [String] $SubscriptionID,
-    [String] $ResourceGroupName,
-    [String] $VMName,
+    [String] $vmUri,
     [String] $ExtensionName,
     [String] $APIVersion,
     [String] $token,
     [String] $scriptPayload
   )
 
-  $Uri = 'https://management.azure.com/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Compute/virtualMachines/{2}/extensions/{3}?api-version={4}' -f `
-    $SubscriptionID, $Resourcegroupname, $VMName, $ExtensionName, $APIVersion
+  $Uri = 'https://management.azure.com{0}/extensions/{1}?api-version={2}' -f $vmUri, $ExtensionName, $APIVersion
   
   $params = @{
     ContentType = 'application/json'
@@ -119,7 +111,8 @@ function Run-Script()
     URI         = $Uri
     Body        = $scriptPayload
   }
-  
+  write-verbose "Calling $uri"
+  write-verbose "Script Body: $scriptPayload"
   $InitialConfig = Invoke-RestMethod @params
   return $InitialConfig
 
@@ -189,28 +182,28 @@ function Run-Script()
     }
 "@
 #>
-
+    write-verbose ('Runing script {0} on VM {1} in Resource Grousp {2}' -f $shutdownScript, $vmName, $resourceGroupName)
   
   $APIVersion = '2017-03-30'
   $token = Get-AzureRmCachedAccessToken
   $ExtensionName='QNDStopScript'
-  $SubscriptionID = (Get-AzureRmContext).Subscription.Id
   $scriptHash = ConvertFrom-Json -InputObject $shutdownScript
   #need to escape \ in json
   $scriptHash.run=$scriptHash.run.Replace('\','\\')
   $vm = get-azurermvm -ResourceGroupName $resourceGroupName -Name $vmName  
   $location = $vm.Location
+  $timestamp=(Get-Date).ToFileTime()
   if($vm.StorageProfile.OsDisk.OsType -ieq 'Windows') {
     $Publisher='Microsoft.Compute'
     $Type='CustomScriptExtension'
     $Version='1.9'
-    $Settings="{""fileUris"" : '',""commandToExecute"": ""$($scriptHash.run)""}"
+    $Settings="{""fileUris"" : '',""commandToExecute"": ""$($scriptHash.run)"", ""timestamp"":$timestamp}"
   }
   else {
-    $Publisher = 'Microsoft.OSTCExtensions'
-    $Type = 'CustomScriptForLinux'
-    $Version = '1.5'
-    $settings="{""commandToExecute""=""$($scriptHash.run)""}"
+    $Publisher = 'Microsoft.Azure.Extensions'
+    $Type = 'CustomScript'
+    $Version = '2.0'
+    $settings="{""commandToExecute"":""$($scriptHash.run)"",""timestamp"":$timestamp}"
   }
 
 
@@ -220,7 +213,7 @@ function Run-Script()
     "properties": {
       "publisher":  "$Publisher",
       "type": "$Type",
-      "typeHandlerVersion": $Version",
+      "typeHandlerVersion": "$Version",
       "autoUpgradeMinorVersion": true,
       "forceUpdateTag": "$ExtensionName",
       "settings": $Settings
@@ -231,25 +224,26 @@ function Run-Script()
 
 
 $timer=get-date
-$kickoff=Run-Script -SubscriptionID $SubscriptionID -ResourceGroupName $resourceGroupName -VMName $vmName -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token -scriptPayload $scriptPayload
+$kickoff=Run-Script -vmUri $vm.Id -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token -scriptPayload $scriptPayload
 do {
   start-sleep -Seconds 15
-  $status = Get-ScriptStatus -SubscriptionID $SubscriptionID -ResourceGroupName $resourceGroupName -VMName $vmName -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token  
+  $status = Get-ScriptStatus -vmUri $vm.Id -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token  
 } while ($status.properties.provisioningState -ne 'Succeeded' -and (((get-date) - $timer).TotalSeconds -le $scriptHash.timeout))
 
   #multiple delete-extension statements in the following code are used because I don't know yet which is the best strategy in case of error. Remove it or not?
   if ($status.properties.provisioningState -ne 'Succeeded') {
-    if ((get-date) - $timer.TotalSeconds -gt $scriptHash.timeout) {
+    write-warning ('Shutdown script exited with status: {0}' -f $status.properties.provisioningState)
+    if (((get-date) - $timer).TotalSeconds -gt $scriptHash.timeout) {
       #in case of timeout we don't remove the script since it is still running, is this correct? If we do this the next time the VM is started the script run again. It's a tough call
-      write-output 'Timeoue executing shutdown script'
-      Delete-Extension -SubscriptionID $SubscriptionID -ResourceGroupName $resourceGroupName -VMName $vmName -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token  
+      write-warning 'Timeout executing shutdown script'
+      Delete-Extension -vmUri $vm.Id -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token  
     }
     else {
-      Delete-Extension -SubscriptionID $SubscriptionID -ResourceGroupName $resourceGroupName -VMName $vmName -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token  
+      Delete-Extension -vmUri $vm.Id -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token  
     }
   }
   else {
-    Delete-Extension -SubscriptionID $SubscriptionID -ResourceGroupName $resourceGroupName -VMName $vmName -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token    
+    Delete-Extension -vmUri $vm.Id -ExtensionName $ExtensionName -APIVersion $APIVersion -token $token  
   }
   #for now just retrun the last status we got
   return $status

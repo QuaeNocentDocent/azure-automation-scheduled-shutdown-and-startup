@@ -1,4 +1,6 @@
-﻿	[cmdletBinding()]
+﻿#do you update me?
+
+[cmdletBinding()]
 	Param
 	(
 		[Parameter(Mandatory=$true)]
@@ -22,7 +24,7 @@ $error.clear()
 			-ServicePrincipal `
 			-TenantId $servicePrincipalConnection.TenantId `
 			-ApplicationId $servicePrincipalConnection.ApplicationId `
-			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint | out-NUll
 	}
 	catch
 	{
@@ -44,9 +46,17 @@ $error.clear()
     else {throw 'Error getting subscription'}
 	}
 	if(! [String]::IsNullOrEmpty($shutdownScript)) {
-    $result = Run-VMScriptAsync -SubscriptionName $SubscriptionName -ConnectionName $ConnectionName -VMName $vmName -ResourceGroupName $resourceGroupName -ShutdownScript $shutdownScript
-    if ($result.properties.provisioningState -ine 'Succeeded') {write-warning 'Error executing shutdown script, proceeding anyway'}
+    try {
+      $result = .\Run-VMScriptAsync.ps1 -SubscriptionName $SubscriptionName -ConnectionName $ConnectionName -VMName $vmName -ResourceGroupName $resourceGroupName -ShutdownScript $shutdownScript
+      if ($result.properties.provisioningState -ine 'Succeeded') {
+        write-warning 'Error or timeout executing shutdown script, proceeding anyway and dumping status'
+        $result
+        $result.properties
+      }
+    } catch {
+      write-warning ('Error executing shutdown script. COntinue anyway. {0}' -f $_)
+    }
 	}
-  Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName -Force
+  Stop-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName -Force | Out-Null
 
     if ($error) {throw ('Error stopping {0}. {1}' -f $vmName, $error[0])}

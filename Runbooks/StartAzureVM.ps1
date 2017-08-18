@@ -22,7 +22,7 @@ $Error.Clear()
 			-ServicePrincipal `
 			-TenantId $servicePrincipalConnection.TenantId `
 			-ApplicationId $servicePrincipalConnection.ApplicationId `
-			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+			-CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint | Out-NUll
 	}
 	catch
 	{
@@ -45,5 +45,5 @@ $Error.Clear()
         else {throw 'Error getting subscription'}
 	} 
 
-    Start-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName
+    Start-AzureRMVM -Name $vmName -ResourceGroupName $resourceGroupName | out-null
     if ($error) {throw ('Error starting {0}. {1}' -f $vmName, $error[0])}

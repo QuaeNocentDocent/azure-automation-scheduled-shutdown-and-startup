@@ -5,6 +5,15 @@ Please refer to the following articles:
 
 [Azure Automation – Using JSON formatted tags to create a week schedule for virtual machine startup and shutdown with Azure Automation Runbooks](https://blogs.technet.microsoft.com/paulomarques/2016/06/20/azure-automation-using-json-formatted-tags-to-create-a-week-schedule-for-virtual-machine-startup-and-shutdown-with-azure-automation-runbooks/)
 
+In addition to the format specified in the article we have:
+
+- a tag (defualts to ) to Enable (=1) or disable the schedule (=0) so it's easy to temporarily suspend the start/stop form a VM/RG from the portal
+- a tag (dafults to ) to specify a shutdown script to be run before turning off the VM. The json payload is {"run":"command line", "timeout": 60}. Where the timeout is in seconds. In this version we support only shutdown script (not start up but they're an easy add) and scripts that are local to the VM. 
+- for a given week day:
+  - if StartTime -eq EndTime we do nothing (skip)
+  - StartTime -eq 0 means 12AM
+  - EndTime -gt 23 means don't turn it off
+
 [Azure Automation scenario: Using JSON-formatted tags to create a schedule for Azure VM startup and shutdown](https://azure.microsoft.com/en-us/documentation/articles/automation-scenario-start-stop-vm-wjson-tags/)
 
 https://docs.microsoft.com/en-us/azure/automation/automation-sec-configure-azure-runas-account

@@ -48,18 +48,19 @@ switch ($context.action) {
     if(![String]::IsNullOrEmpty($context.parameters.enabled)) {$OptionalParameters.Add('enabled', $context.parameters.enabled)}    
     if(![String]::IsNullOrEmpty($context.parameters.connectionName)) {$OptionalParameters.Add('connectionName', $context.parameters.connectionName)}      
     if(![String]::IsNullOrEmpty($context.parameters.scriptTagName)) {$OptionalParameters.Add('ScriptTagName', $context.parameters.scriptTagName)}      
-    if(![String]::IsNullOrEmpty($context.parameters.script)) {$OptionalParameters.Add('shutdownScript', ($context.parameters.script | convertto-json))}              
+    if(![String]::IsNullOrEmpty($context.parameters.script)) {$OptionalParameters.Add('shutdownScript', ($context.parameters.script | convertto-json))}  
     .\Set-VMStartStopSchedule.ps1 -subscriptionName $context.parameters.subscriptionName -resourceGroupName $context.parameters.resourceGroupName `
       -vmName $context.parameters.vmName -schedule ($context.parameters.schedule | convertto-json -Depth 4) @OptionalParameters
   }
   'remove' {
     if(![String]::IsNullOrEmpty($context.parameters.tagName)) {$OptionalParameters.Add('tagNames', [array]$context.parameters.tagNames)}
-    if(![String]::IsNullOrEmpty($context.parameters.connectionName)) {$OptionalParameters.Add('connectionName', $context.parameters.connectionName)}          
+    if(![String]::IsNullOrEmpty($context.parameters.connectionName)) {$OptionalParameters.Add('connectionName', $context.parameters.connectionName)} 
     .\Remove-VMStartStopSchedule.ps1 -subscriptionName $context.parameters.subscriptionName -resourceGroupName $context.parameters.resourceGroupName `
       -vmName $context.parameters.vmName
   }
 }
 
+<# 
 $body=@"
 {"parameters":{"enableTagName":"EnableStartStopSchedule","enabled":true,"resourceGroupName":"GollumOnDocker","schedule":
 {"5":{"S":"8","E":"20"},"1":{"S":"8","E":"20"},"2":{"S":"8","E":"20"},"6":{"S":"0","E":"0"},"4":{"S":"8","E":"20"},"3":{
@@ -67,3 +68,4 @@ $body=@"
 Time"},"connectionName":"","subscriptionName":"Azure Benefits","script":{"run":"sh /tmp/test.sh","timeOut":"60"},"vmName
 ":"GollumD","tagName":"StartStopSchedule","scriptTagName":"ScriptStartStopSchedule"},"action":"set"}
 "@
+#>

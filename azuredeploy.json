@@ -27,7 +27,7 @@
             "Id":"",
             "publishContentLink": {
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Test-VMStartStopSchedule.ps1')]",
-              "version": "1.0.0.0"
+              "version": "1.0.0.2"
             }
           },
           {
@@ -39,7 +39,7 @@
             "Id":"",
             "publishContentLink": {
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Set-VMStartStopSchedule.ps1')]",
-              "version": "1.0.0.0"
+              "version": "1.0.0.2"
             }
           },
           {
@@ -51,7 +51,7 @@
             "Id":"",
             "publishContentLink": {
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Remove-VMStartStopSchedule.ps1')]",
-              "version": "1.0.0.0"
+              "version": "1.0.0.2"
             }
           },
           {
@@ -63,7 +63,7 @@
             "Id":"",
             "publishContentLink": {
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/wh-StartStopSchedule.ps1')]",
-              "version": "1.0.0.0"
+              "version": "1.0.0.2"
             }
           },
           {
@@ -75,7 +75,7 @@
             "Id":"",
             "publishContentLink": {
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/StartAzureVM.ps1')]",
-              "version": "1.0.0.0"
+              "version": "1.0.0.2"
             }
           },
           {
@@ -87,7 +87,7 @@
             "Id":"",
             "publishContentLink": {
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/StopAzureVM.ps1')]",
-              "version": "1.0.0.1"
+              "version": "1.0.0.2"
             }
           },
           {
@@ -99,7 +99,7 @@
             "Id":"",
             "publishContentLink": {
               "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Run-VMScriptAsync.ps1')]",
-              "version": "1.0.0.0"
+              "version": "1.0.0.2"
             }
           }       
         ],
