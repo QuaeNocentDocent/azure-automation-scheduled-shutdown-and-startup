@@ -1,0 +1,189 @@
+{
+    "$schema": "http://schemas.microsoft.org/azure/deploymentTemplate?api-version=2015-01-01-preview#",
+    "contentVersion": "1.0",
+    "parameters": {
+        "omsAutomationAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Use an existing Automation account or create a new one."
+            }
+        },
+    "_artifactsLocation": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/QuaeNocentDocent/azure-automation-scheduled-shutdown-and-startup/30andswitch",
+      "metadata": {
+        "description": "The base URI where artifacts required by this template are located"
+      }
+    }        
+    },
+    "variables": {
+        "runbooks": [
+          {
+            "name": "Test-VMStartStopSchedule",
+            "description": "Lists every VM on every resource group of a subscription and test for a Schedule tag existance and takes an action to start or shutdown the VM depending on scheduled hours.",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Test-VMStartStopSchedule.ps1')]",
+              "version": "1.0.0.2"
+            }
+          },
+          {
+            "name": "Set-VMStartStopSchedule",
+            "description": "Adds Schedule tag to a VM or Resource Group that is later evaluated.",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Set-VMStartStopSchedule.ps1')]",
+              "version": "1.0.0.2"
+            }
+          },
+          {
+            "name": "Remove-VMStartStopSchedule",
+            "description": "Removes  Schedule tag from a VM or Resource Group. VMs without this tag are not evaluated",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Remove-VMStartStopSchedule.ps1')]",
+              "version": "1.0.0.2"
+            }
+          },
+          {
+            "name": "wh-StartStopSchedule",
+            "description": "Gives a webhhok interface for setting or removing the start7stop schedules",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/wh-StartStopSchedule.ps1')]",
+              "version": "1.0.0.2"
+            }
+          },
+          {
+            "name": "StartAzureVM",
+            "description": "Starts an Azure VM",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/StartAzureVM.ps1')]",
+              "version": "1.0.0.2"
+            }
+          },
+          {
+            "name": "StopAzureVM",
+            "description": "Stops an Azure VM",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/StopAzureVM.ps1')]",
+              "version": "1.0.0.2"
+            }
+          },
+          {
+            "name": "Run-VMScriptAsync",
+            "description": "Run an extension script on the VM",
+            "type": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "Id":"",
+            "publishContentLink": {
+              "uri": "[concat(parameters('_artifactsLocation'),'/Runbooks/Run-VMScriptAsync.ps1')]",
+              "version": "1.0.0.2"
+            }
+          }       
+        ],
+        // to be converted in array
+        "scheduleName": "Hourly",
+        // for the job scheudle a guid is required, anything else terminates in error, plus it is not idempotent basically breaking the template. 
+        // Every subsequent deployment returns an error stating the resource is already present. For these reasons we will not deploy the job schedule.
+        "jobScheduleName": "2781dd0b-0c7c-4c4c-b9be-4c296d9917ef" 
+    },
+    "resources": [
+      {
+        "name": "[parameters('omsAutomationAccountName')]",
+        "type": "Microsoft.Automation/automationAccounts",
+        "apiVersion": "2015-10-31",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [ ],
+        "tags": { },
+        "properties": {
+          "sku": {
+            "name": "Basic"
+          }
+        }
+      },
+      {
+        "name": "[concat(parameters('omsAutomationAccountName'),'/',variables('runbooks')[copyIndex()].name)]",
+        "type": "Microsoft.Automation/automationAccounts/runbooks",
+        "apiVersion": "2015-10-31",
+        "location": "[resourceGroup().location]",        
+        "copy": {
+            "name": "runbooksCopy",
+            "count": "[length(variables('runbooks'))]"
+        },
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts/', parameters('omsAutomationAccountName'))]"
+        ],
+        "properties": {
+              "runbookType": "[variables('runbooks')[copyIndex()].type]",
+              "logProgress": "[variables('runbooks')[copyIndex()].logProgress]",
+              "logVerbose": "[variables('runbooks')[copyIndex()].logVerbose]",
+              "description": "[variables('runbooks')[copyIndex()].description]",
+              "publishContentLink": "[variables('runbooks')[copyIndex()].publishContentLink]"
+        }
+      },
+      {
+        "name": "[concat(parameters('omsAutomationAccountName'),'/',variables('scheduleName'))]",
+        "type": "Microsoft.Automation/automationAccounts/schedules",
+        "apiVersion": "2015-10-31",
+        "location": "[resourceGroup().location]",          
+        "properties": {
+            "description": "",
+            "startTime": "",
+            "expiryTime": "9999-12-31T23:59:59.9999999+00:00",
+            "isEnabled": true,
+            "interval": 1,
+            "frequency": "Hour"
+        },
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+        ]
+      },
+
+/*      {
+        "name": "[concat(parameters('omsAutomationAccountName'),'/',variables('jobScheduleName'))]",
+        "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+        "apiVersion": "2015-10-31",
+        "location": "[resourceGroup().location]",        
+        "properties": {
+            "runbook": {
+                "name": "Test-VMStartStopSchedule" 
+            },
+            "schedule": {
+                "name": "[variables('scheduleName')]" 
+            },            
+            "parameters": {
+              "SubscriptionName": "[parameters('subscriptionName')]"
+            }
+        },
+        "dependsOn": [
+              "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]",
+              "[resourceId('Microsoft.Automation/automationAccounts/schedules', parameters('omsAutomationAccountName'), variables('scheduleName'))]",
+              "runbooksCopy"              
+        ]
+      }      
+*/      
+    ],
+    "outputs": {}
+}
